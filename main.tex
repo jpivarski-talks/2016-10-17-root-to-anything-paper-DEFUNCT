@@ -1,13 +1,47 @@
 \documentclass{article}
 \usepackage[utf8]{inputenc}
 \usepackage{fullpage}
+\usepackage{hyperref}
+\usepackage{array}
 
-\title{ROOT-to-anything data access via Apache Arrow}
+\title{Liberating ROOT data through Apache Arrow}
 \author{Jim Pivarski}
 \date{\today}
+
+\newcolumntype{P}[1]{>{\centering\arraybackslash}b{#1}}
 
 \begin{document}
 \maketitle
 
-(Type your content here.)
+\section*{Motivation}
+
+The ROOT I/O system was introduced as a way to standardize High Energy Physics (HEP) experiment data in a self-describing format. It was proposed\footnote{\url{https://root.cern.ch/save-data}} as a safe alternative to creating custom file formats for each experiment, and in this, it succeeded. However, in the past two decades, open source projects from the Big Data industry have taken up the same charge and provide this function with higher performance and portability. 
+
+The ROOT file format is a ``meta-format'' in the same sense as XML, JSON, HDF5, and now Avro, Thrift, Protocol Buffers, Parquet, ORC, and Feather. All of these file formats are generic containers of structured data. XML and JSON are human-readable text and therefore inefficient for large stores of numerical data. Avro, Thrift, and Protocol Buffers are binary record formats developed by the Hadoop project, Facebook, and Google (respectively) to transfer streams of data between applications, often across networks and programming languages. Parquet, ORC, and Feather are the most similar to ROOT: they are columnar stores for accessing large batches of data, usually in databases.
+
+All of the file formats mentioned above differ from ROOT in the amount of seeking that is required to interpret a file. 
+
+
+
+
+47,407 $t\bar{t}$ events (4-vectors and generator-level particles). (``Error while instantiating TBranchElement'')
+
+\begin{tabular}{p{3.5 cm} | P{1 cm} P{1 cm} P{1 cm} P{1.1 cm} P{1 cm} P{1 cm} P{1 cm}}
+File type & file size (MB) & convert from ROOT (sec) & read all in C++ (sec) & read a field in C++ (sec) & convert from Avro (sec) & read all Java (sec) & read a field Java (sec)      \\\hline
+ROOT uncompressed  & 399 & 110 &  47 & 11.6 & didn't & can't & can't \\
+ROOT compression 1 & 204 & 127 &  48 & 12.0 & try & $\downarrow$ & $\downarrow$ \\
+ROOT compression 2 & 208 & 132 &  47 & 11.4 & $\downarrow$ & $\downarrow$ & $\downarrow$ \\
+ROOT compression 9 & 202 & 265 &  48 & 11.2 & $\downarrow$ & $\downarrow$ & $\downarrow$ \\\hline
+Avro-Uncompressed  & 237 &  76 & 113 &  5.4 & 168 &  8.3  & 3.3   \\
+Avro-Snappy        & 198 &  79 & 116 &  6.2 & 172 &  8.8  & 3.9   \\
+Avro-Deflate       & 180 & 142 & 117 &  7.6 & 197 & 13.5  & 8.5   \\
+Avro-LZMA          & 169 & 285 & 134 & 25.5 & 576 & can't & can't \\
+\end{tabular}
+
+
+
+
+
+
+
 \end{document}
