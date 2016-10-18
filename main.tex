@@ -3,6 +3,7 @@
 \usepackage{fullpage}
 \usepackage{hyperref}
 \usepackage{array}
+\usepackage{xcolor}
 
 \title{Liberating ROOT data through Apache Arrow}
 \author{Jim Pivarski}
@@ -24,22 +25,30 @@ All of the file formats mentioned above differ from ROOT in the amount of seekin
 
 
 
-47,407 $t\bar{t}$ events (4-vectors and generator-level particles). (``Error while instantiating TBranchElement'')
+47,407 $t\bar{t}$ events (4-vectors and generator-level particles) containing 55,560 muons. (``Error while instantiating TBranchElement'')
 
-\begin{tabular}{p{3.5 cm} | P{1 cm} P{1 cm} P{1 cm} P{1.1 cm} P{1 cm} P{1 cm} P{1 cm}}
+blockSize = 32 MB
+
+pageSize = 1 MB
+
+the one field was Muon.pt for all muons
+
+single processor (had to be explicitly forced for Parquet, which uses all available CPU cores by default)
+
+\noindent\begin{tabular}{p{2.4 cm} | P{1.2 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm} P{1.9 cm} P{1.2 cm} P{1.5 cm}}
 File type & file size (MB) & convert from ROOT (sec) & read all in C++ (sec) & read a field in C++ (sec) & convert from Avro (sec) & read all Java (sec) & read a field Java (sec)      \\\hline
-ROOT uncompressed  & 399 & 110 &  47 & 11.6 & didn't & can't & can't \\
-ROOT compression 1 & 204 & 127 &  48 & 12.0 & try & $\downarrow$ & $\downarrow$ \\
-ROOT compression 2 & 208 & 132 &  47 & 11.4 & $\downarrow$ & $\downarrow$ & $\downarrow$ \\
-ROOT compression 9 & 202 & 265 &  48 & 11.2 & $\downarrow$ & $\downarrow$ & $\downarrow$ \\\hline
-Avro-Uncompressed  & 237 &  76 & 113 &  5.4 & 168 &  8.3  & 3.3   \\
-Avro-Snappy        & 198 &  79 & 116 &  6.2 & 172 &  8.8  & 3.9   \\
-Avro-Deflate       & 180 & 142 & 117 &  7.6 & 197 & 13.5  & 8.5   \\
-Avro-LZMA          & 169 & 285 & 134 & 25.5 & 576 & can't & can't \\
+ROOT none     & 399 &          110 &           47 &         11.6 &       \textcolor{gray}{didn't} &        \textcolor{gray}{can't} &        \textcolor{gray}{can't} \\
+ROOT gzip 1   & 204 &          127 &           48 &         12.0 &          \textcolor{gray}{try} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} \\
+ROOT gzip 2   & 208 &          132 &           47 &         11.4 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} \\
+ROOT gzip 9   & 202 &          265 &           48 &         11.2 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} \\\hline
+Avro none     & 237 &           76 &          113 &          5.4 &          168 &          8.3 &          3.7 \\
+Avro snappy   & 198 &           79 &          116 &          6.2 &          172 &          8.8 &          4.3 \\
+Avro deflate  & 180 &          142 &          117 &          7.6 &          197 &         13.5 &          8.9 \\
+Avro LZMA     & 169 &          285 &          134 &         25.5 &          576 &        \textcolor{gray}{can't} &        \textcolor{gray}{can't} \\\hline
+Parquet none  & 210 &        \textcolor{gray}{can't} &        \textcolor{gray}{can't} &        \textcolor{gray}{can't} &          177 &           54 &          2.3 \\
+Parquet snappy  & 200 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} &          184 &           54 &          2.4 \\
+Parquet gzip  & 176 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} &          199 &           56 &          2.5 \\
 \end{tabular}
-
-
-
 
 
 
