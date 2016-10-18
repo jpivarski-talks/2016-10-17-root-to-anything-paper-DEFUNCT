@@ -35,6 +35,8 @@ the one field was Muon.pt for all muons
 
 single processor (had to be explicitly forced for Parquet, which uses all available CPU cores by default)
 
+\renewcommand{\arraystretch}{1.2}
+
 \noindent\begin{tabular}{p{2.4 cm} | P{1.2 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm} P{1.9 cm} P{1.2 cm} P{1.5 cm}}
 File type & file size (MB) & convert from ROOT (sec) & read all in C++ (sec) & read a field in C++ (sec) & convert from Avro (sec) & read all Java (sec) & read a field Java (sec)      \\\hline
 ROOT none     & 399 &          110 &           47 &         11.6 &       \textcolor{gray}{didn't} &        \textcolor{gray}{can't} &        \textcolor{gray}{can't} \\
