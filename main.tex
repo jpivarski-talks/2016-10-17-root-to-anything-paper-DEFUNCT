@@ -36,11 +36,11 @@ Arrow is in its infancy, though. At the time of writing, it has been an Apache t
 
 Adding Arrow interoperability to ROOT, either as a part of the ROOT application or an add-on library, would add fluidity to HEP data. Once Arrow is established, physicists could mix ROOT analysis functions with Pandas for machine learning, Spark for distributed, iterative analysis (e.g.\ alignment and calibration), or one of the many distributed databases contending for low-latency, interactive analysis (e.g.\ ntuple exploration at a vast scale). With this new layer of flexibility between file formats and runtime environments, it would be safer to experiment with new file formats. And perhaps most importantly, it would remove the barrier between the HEP software ecosystem and the new ecosystems that are rapidly growing around numerical Python and Hadoop.
 
-This paper starts with an overview of the Avro (record-major) and Parquet (columnar) file formats, followed by a performance comparison with ROOT to show that they are, in some ways, more performant than ROOT for physics data. Next, we present a roadmap for developing ROOT-Arrow interoperability, concluding with a walkthrough of ROOT-to-Avro code demonstrating some of the necessary steps.
+This paper starts with an overview of the Avro (record-major) and Parquet (columnar) file formats with extrapolations to Arrow (columnar in-memory), followed by a performance comparison with ROOT to show that they are, in some ways, more performant than ROOT for physics data. Next, we present a roadmap for developing ROOT-Arrow interoperability, concluding with a walkthrough of ROOT-to-Avro code demonstrating some of the necessary steps.
 
-\section*{Avro and Parquet file formats}
+\section*{Avro, Parquet, and Arrow}
 
-
+% zig-zag format
 
 
 
@@ -64,42 +64,45 @@ Parquet snappy  & 200 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\down
 Parquet gzip  & 176 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} &          199 &           56 &          2.5 \\
 \end{tabular}
 
-\vspace{0.2 cm}
+\vspace{0.3 cm}
 The above table shows the relative file sizes and read/write performance of a sample of 47,407 $t\bar{t}$ Monte Carlo events. The data are not flat ntuples: they contain TClonesArrays of custom class instances. They represent fully reconstructed 4-vectors with enough auxiliary information to perform complete analyses\footnote{\url{https://github.com/mcremone/BaconAnalyzer}}. ROOT 6.06/08, Avro-C and Avro-Java 1.8.1, and Parquet 1.8.1 were used for read and write tests with an SSD disk and one processor with 4~GB of RAM and 1024 kB of CPU cache.
 
-A typical ROOT file uses gzip compression level 1, corresponding to the second line in the table (204~MB). The ``convert from ROOT'' operation is the time required for a {\tt TTree::CloneTree()} (127 sec).
+A typical ROOT file uses gzip compression level 1, corresponding to the second line in the table (204~MB). The ``convert from ROOT'' operation is the time required for a {\tt TTree::CloneTree()} (127 sec). All ROOT files in this study are fully split.
 
 The Avro analogy represents the TClonesArrays as Avro arrays and the C++ class instances as abstract records. Typically, one would use Avro's built-in Snappy compression to balance file size with CPU effort: in this case ROOT's 204~MB compresses down to a 198~MB Avro file. The ``convert from ROOT'' operation is complicated by the fact that it counts ROOT-reading and Avro-writing, but because pure ROOT-reading takes 48~sec, we can infer that ROOT-to-Avro's 79~sec is 48~sec of reading followed by 31~sec of writing. By the same logic, ROOT-to-ROOT is 48~sec of reading followed by 79~sec ($127 - 48$) of writing.
 
-ROOT is faster than the Avro-C library\footnote{\url{https://avro.apache.org/docs/current/api/c/}} for reading back the whole structure. ROOT takes 48~sec to repopulate the TClonesArrays of class instances and Avro-C takes 116~sec. (This analysis used Avro-C's older ``datum'' interface.) However, Avro-C is faster at picking out one field: muon $p_T$ for all muons can be extracted from ROOT in 12.0~sec and Avro in 6.2~sec. (The dataset has 55,560 muons, 1.17 muon per event.)
+ROOT is faster than the Avro-C library\footnote{\url{https://avro.apache.org/docs/current/api/c/}} for reading back the whole structure. ROOT takes 48~sec to repopulate the TClonesArrays of class instances and Avro-C takes 116~sec. (This analysis used Avro-C's older ``datum'' interface.) However, Avro-C is faster at picking out one field: muon $p_T$ for all muons can be extracted from ROOT in 12.0~sec and Avro in 6.2~sec. (The dataset has 55,560 muons, 1.17 muons per event.)
 
-This may seem surprising because ROOT's file format was designed to be columnar precisely for this purpose. Avro has to read, decompress, and step through the entire record to pick out the muon $p_T$, while ROOT simply seeks to that branch, decompresses it, and delivers it. There are several factors that complicate this comparison. One is that the disk hardware is an SSD, which has a much higher bandwidth than mechanical disk drives. Another is that snappy is a more lightweight compression algorithm than gzip, with an emphasis on CPU efficiency. The LZMA algorithm compresses the data more tightly at a significant cost in reading (25.5~sec). Finally, the Avro read has a strictly linear memory access pattern that favors prefetching to CPU cache. The relatively poor performance of reading all records in Avro-C (and immediately deleting them) may be related to the simple memory allocation and reference counting procedure it uses to track data ownership.
+This may seem surprising because ROOT's file format was designed to be columnar precisely for this purpose. Avro has to read, decompress, and step through the entire record to pick out the muon $p_T$, while ROOT simply seeks to that branch, decompresses it, and delivers it. There are several factors that complicate this comparison. One is that the disk hardware is an SSD, which has a much higher bandwidth than mechanical disk drives. Another is that snappy is a more lightweight compression algorithm than gzip, with an emphasis on CPU efficiency. The LZMA algorithm compresses the data more tightly at a significant cost in reading (25.5~sec). Finally, the Avro read has a strictly linear memory access pattern that favors prefetching to CPU cache.
+
+Note that the read-time results are, with the exception of LZMA, independent of compression for both ROOT and Avro. Something that doesn't scale with read size or depth of compression is the true bottleneck, and object-creation is a likely culprit. ROOT fills TClonesArray and our custom classes after reading, and it probably does this well (highly tuned; many experiments depend on it). Avro-C reads data into its custom {\tt datum\_t} objects, which are likely more often used for writing than reading.
 
 Perhaps more surprising is the Avro read performance in Java: 8.8~sec to read all fields and 4.3~sec to read muon $p_T$, compared with 116 and 6.2~sec, respectively, in Avro-C. The Java implementation of Avro would have received much more developer scrutiny, as it has a central role in Hadoop data processing. Our array-of-records structure thwarts direct object reuse, but the short-lived objects created and destroyed in this test would benefit from Java's generational garbage collection: they might never live beyond the Eden generation, where memory allocation does not involve an $\mathcal{O}(n)$ search through a fragmented memory space.
 
-The corresponding ROOT file performance in Java with FreeHEP-RootIO would be interesting, but this old project raises an ``Error while instantiating TBranchElement'' exception whenever it encounters anything but flat ntuple data.
+The corresponding ROOT file performance in Java with FreeHEP-RootIO would be interesting, but this old project raises an ``Error while instantiating TBranchElement'' exception whenever it encounters anything but flat ntuple data. It's also worth noting that LZMA compression is an Avro-C feature, not available in Avro-Java.
+
+Given the above three paragraphs, Avro is a good choice for data export from C++ to Java, but not the other way around. Parquet and Arrow promise to be a better bridge from Big Data applications back into C++, since it is targeted as a high-speed backend for Pandas (Python, using C++ for tight loops).
+
+At the time of writing, Parquet-C++ was not ready for nested data structures. However, Parquet-Java is, so we used Parquet's {\tt AvroSchemaConverter} and {\tt AvroWriteSupport} to overlay Avro's type system onto Parquet and read the Avro files into Parquet files. An Avro-to-Avro procedure takes about as long (172~sec) as an Avro-to-Parquet procedure (184~sec). 
+
+For this study, we used a constant Parquet {\tt blockSize} of 32~MB, which is the granularity of a group of rows with their associated columns. The default size is 128~MB, but then the whole file would become one or two row groups and we wouldn't see variation with compression algorithms. We used a {\tt pageSize} of 1~MB (default), which is the size of array buffers that are independently compressed.
+
+We can now read Parquet files back into Avro data structures (Java class instances), which takes about 54~sec, regardless of compression. This is much worse than the 8.8~sec it takes to read Avro files into the same data structures. In fact, reading columnar Parquet files into Java class instances is conceptually similar to reading split ROOT files into C++ class instances, and the time is similar: 48~sec for ROOT/C++, 54~sec for Parquet/Java. However, Parquet is not intended to be used in an event loop.
+
+Parquet's intended purpose is to be a database backend, in which users submit queries for single histograms (e.g.\ in the form of an SQL group-by statement) and the system organizes them into work-plans that execute and return results on a human timescale (milliseconds to seconds). This functionality is built into systems like Drill, Impala, and SparkSQL; we used SparkSQL.
+
+Spark had to be deliberately limited to one CPU core; by default, it reads Parquet with all cores in parallel. It was also hard to thwart caching and distinguish among shortening latencies due to previously cached results, one-time library loading, and Java HotSpot optimization. Toward this end, we made several copies of the file and read them each into SparkSQL as distinct tables, reading from each one once. The data can't be cached (since Spark doesn't know that the files are identical) but libraries and HotSpot optimizations needed for the early files wouldn't be needed for later files. We took the plateau read time (0.5~sec to load a new database plus 1.9~sec to respond to a query) as the result in the table.
+
+Although single-field read times from Avro (4.3~sec) and Parquet (2.4~sec) differ by only a factor of two, an interactive user would experience them quite differently. Repeated queries for the same field are cached, allowing the user to explore the data by varying cuts. Furthermore, this caching is distributed across a cluster, sharing caches with users interested in the same fields. However, there is no way to quantify that difference in usage patterns in a table.
+
+\section*{Roadmap to a ROOT-Arrow interface}
 
 
 
 
+\section*{Review of ROOT-to-Avro code}
 
-
-
-\pagebreak
-
-zig-zag format
-
-
-
-blockSize = 32 MB
-
-pageSize = 1 MB
-
-
-
-single processor (had to be explicitly forced for Parquet, which uses all available CPU cores by default)
-
-
+\footnote{\url{https://github.com/diana-hep/rootconverter}}
 
 
 
