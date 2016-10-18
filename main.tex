@@ -16,14 +16,41 @@
 
 \section*{Motivation}
 
-The ROOT I/O system was introduced as a way to standardize High Energy Physics (HEP) experiment data in a self-describing format. It was proposed\footnote{\url{https://root.cern.ch/save-data}} as a safe alternative to creating custom file formats for each experiment, and in this, it succeeded. However, in the past two decades, open source projects from the Big Data industry have taken up the same charge and provide this function with higher performance and portability. 
+The purpose of the ROOT file format is to standardize storage of and access to High Energy Physics (HEP) data in an efficient manner. It has been extraordinarily successful over the past twenty years, forming the bedrock of most HEP experimental frameworks.
 
-The ROOT file format is a ``meta-format'' in the same sense as XML, JSON, HDF5, and now Avro, Thrift, Protocol Buffers, Parquet, ORC, and Feather. All of these file formats are generic containers of structured data. XML and JSON are human-readable text and therefore inefficient for large stores of numerical data. Avro, Thrift, and Protocol Buffers are binary record formats developed by the Hadoop project, Facebook, and Google (respectively) to transfer streams of data between applications, often across networks and programming languages. Parquet, ORC, and Feather are the most similar to ROOT: they are columnar stores for accessing large batches of data, usually in databases.
+The ROOT format owes its success to two main factors: it is a meta-format, allowing specific data formats to be expressed within it, and it serializes complex, nested data structures in a columnar way, so that only the fields that are needed for an analysis will be read from disk.
 
-All of the file formats mentioned above differ from ROOT in the amount of seeking that is required to interpret a file. 
+Meta-formats are not new; HDF and FITS both predate ROOT as self-describing scientific data containers. XML and ROOT were released in the same year (1997), and XML has been widely used in industry, despite its inefficiency for numerical data. More recently, JSON has supplanted XML in many applications and Avro, Thrift, and Protocol Buffers provide leaner (binary) representations of numerical data. These all share XML's record-major layout, like ROOT with split-mode turned off. Columnar file formats such as ORC, Parquet, and Feather are like ROOT with split-mode enabled, aiming to provide sub-second responses to queries on terabytes of data in the Hadoop ecosystem.
+
+These so-called ``Big Data'' formats provide the same features as ROOT with similar or better performance. Unlike ROOT, most have a clear separation between code and specification, with APIs in many programming languages. Avro, for instance, has bindings for 11 languages, Thrift for 19, and Protocol Buffers for 10. ROOT can only be accessed in C++. (The Java-based FreeHEP-RootIO\footnote{\url{http://java.freehep.org/freehep-rootio/}} and independent RIO\footnote{\url{http://openscientist.lal.in2p3.fr/}} projects seem to be abandoned and do not open modern ROOT files.) Furthermore, the Big Data formats were designed with networking and distributed computing in mind. It may have taken the industry decades to catch up, but now the problem of how to quickly deliver vast quantities of structured, numerically intensive data has become an active area of research and commercial investment.
+
+HEP could benefit from this activity, but for two concerns: (1) long-lived data should have a stable format, and industry formats are changing rapidly; (2) many of these formats overlap in functionality, so which should a physicist choose? For instance, Avro, Thrift, and Protocol Buffers are all variants of binary JSON with schemas, developed independently by the Hadoop team, Facebook, and Google, respectively. It would be unwise to convert petabytes of HEP data into Protocol Buffers only to see its popularity eclipsed by Avro, for example. Also, the same ROOT executable reads unsplit (record-major) and split (columnar) ROOT data. In industry, this choice is made by swapping formats and using a different reader.
+
+Fortunately, the situation is not quite this chaotic: new formats interoperate with old formats and many converters are available. The Parquet project takes a very open approach by storing its columnar data with minimal interpretation so that they can be viewed through Avro's, Thrift's, or Protocol Buffers' ``logical'' type systems, making the data conceptually interchangeable.
+
+Moreover, a new project called Apache Arrow seeks to unify the runtime layout of data in memory. The purpose is to share data among analytic engines, such as Spark and Pandas, without saving it to a file or even copying it in memory. For disk formats, this means that $N$ formats may be translated among each other with $N$ translation libraries, rather than $N(N - 1)$.
+
+Apache Arrow grew out of the in-memory data representation developed for Apache Drill\footnote{\url{https://www.mapr.com/blog/apache-arrow-and-value-vectors}} (a low-latency server for interactive analysis on large datasets). This data layout is similar to the one used by Apache Spark\footnote{\url{https://databricks.com/blog/2015/04/28/project-tungsten-bringing-spark-closer-to-bare-metal.html}} and others, since they are all motivated by a need to efficiently stream data through the CPU cache. Arrow is columnar, packed, and ready for vectorized instructions, while still describing complex, nested trees.
+
+Arrow is in its infancy. At the time of writing, it has been an Apache top-level project for eight months and announced its first version\footnote{\url{https://github.com/apache/arrow/releases/tag/apache-arrow-0.1.0}} two weeks ago (0.1.0 for Java, C++, and Python). However, the project has momentum. It shares developers with Pandas, Parquet, and Spark, and it is seen as the path for completing the Parquet-C++ library and therefore adding fast Parquet I/O to Pandas. Calcite, Cassandra, Drill, Hadoop, HBase, Ibis, Impala, Kudu, Phoenix, and Storm are also involved in the project, to be ready when Arrow becomes a de-facto standard.
+
+Adding Arrow interoperability to ROOT, either as a part of the ROOT application or an add-on library, would add fluidity to HEP data. Once Arrow is established, physicists could mix ROOT analysis functions with Pandas for machine learning, Spark for distributed, iterative analysis (e.g.\ alignment and calibration), or one of the many contenders for low-latency, interactive analysis (e.g.\ ntuple exploration). A layer of flexibility would be added between the file format and runtime environment, making it safer to try new file formats. And perhaps most importantly, it would remove the barrier between the HEP software ecosystem and the new ecosystems rapidly growing around numerical Python and Hadoop.
+
+This paper describes technical details of two file formats, Avro and Parquet, as well as the developing Arrow specification. It presents a roadmap for 
 
 
 
+
+
+
+
+
+
+
+
+\pagebreak
+
+zig-zag format
 
 47,407 $t\bar{t}$ events (4-vectors and generator-level particles) containing 55,560 muons. (``Error while instantiating TBranchElement'')
 
