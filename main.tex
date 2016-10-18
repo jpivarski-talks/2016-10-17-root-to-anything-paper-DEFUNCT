@@ -36,9 +36,9 @@ Arrow is in its infancy. At the time of writing, it has been an Apache top-level
 
 Adding Arrow interoperability to ROOT, either as a part of the ROOT application or an add-on library, would add fluidity to HEP data. Once Arrow is established, physicists could mix ROOT analysis functions with Pandas for machine learning, Spark for distributed, iterative analysis (e.g.\ alignment and calibration), or one of the many contenders for low-latency, interactive analysis (e.g.\ ntuple exploration). A layer of flexibility would be added between the file format and runtime environment, making it safer to try new file formats. And perhaps most importantly, it would remove the barrier between the HEP software ecosystem and the new ecosystems rapidly growing around numerical Python and Hadoop.
 
-This paper describes technical details of two file formats, Avro and Parquet, as well as the developing Arrow specification. It presents a roadmap for 
+This paper describes technical details of two file formats, Avro and Parquet, as well as the developing Arrow specification. It presents a roadmap for developing ROOT-Arrow interoperability and concludes with a walkthrough of code that converts generic TTrees from ROOT into Avro, to serve as a guide.
 
-
+\section*{}
 
 
 
