@@ -37,7 +37,7 @@ single processor (had to be explicitly forced for Parquet, which uses all availa
 
 \renewcommand{\arraystretch}{1.2}
 
-\noindent\begin{tabular}{p{2.4 cm} | P{1.2 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm} P{1.9 cm} P{1.2 cm} P{1.6 cm}}
+\noindent\begin{tabular}{p{2.4 cm} | P{1.2 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm}}
 File type & file size (MB) & convert from ROOT (sec) & read all in C++ (sec) & read a field in C++ (sec) & convert from Avro (sec) & read all in Java (sec) & read a field in Java (sec)      \\\hline
 ROOT none     & 399 &          110 &           47 &         11.6 &       \textcolor{gray}{didn't} &        \textcolor{gray}{can't} &        \textcolor{gray}{can't} \\
 ROOT gzip 1   & 204 &          127 &           48 &         12.0 &          \textcolor{gray}{try} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} \\
