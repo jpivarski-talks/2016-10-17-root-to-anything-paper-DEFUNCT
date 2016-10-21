@@ -86,9 +86,21 @@ The {\tt root2avro} code described in the last section implements such a ruleset
 
 \subsection*{Schema evolution and type projection}
 
-Much like ROOT, abstract type systems define rules for schema evolution. A given schema (abstract type) describes a set of possible values that can be instances of that type. As long as the type required by a reader is a superset of the schema published in a file, the file can be read by that reader.
+Much like ROOT, abstract type systems define rules for schema evolution. A deserializer that needs to fill a given runtime type (defined by a user-supplied schema) must be a {\it supertype} of the schema published in a file's metadata. Supertypes are any types that could be used in place of its subtype: floating point values are supertypes of integers, and records with fewer fields are supertypes of records with more fields. In C++ class inheritance, B is a subclass of A if B has all the members of A and (possibly) more, so a subtype/supertype relationship is a generalization of a subclass/superclass relationship.
 
-For instance, integers in a file can be read into floating point variables, but not the other way around. Same for a list of integers or a record with integer fields: they can be read into a list of floats or a record with floating-point fields (type covariance). Additionally, a record in a file with many fields can be read into a runtime structure with fewer fields: the extra fields are simply ignored. A union of types X, Y, and Z can be read into a runtime structure of types X and Y.
+To give some concrete examples, Avro's {\tt int} can be read into {\tt long}, both can be read into {\tt float}, and all three can be read into {\tt double}, but not the other way around. An array of {\tt int} can be read into an array of {\tt double} (type covariance). Records with {\tt int} fields can be read into records with {\tt double} fields or records with fewer fields. A union of types X, Y, and Z can be read into a runtime structure of types X and Y. Enumerations of A, B, and C can be read into runtime enumerations of A, B, C, and D. Old type names can be replaced with new type names via aliases.
+
+The typical use-case of schema evolution is to future-proof data structures, so that old data can be used in new applications. In HEP, Avro schema evolution has been used to read Monte Carlo (which has generator-level information) and data (which does not) into the same compiled classes. In this use-case, the data's schema was simply a supertype of the Monte Carlo's schema.
+
+Supertypes are also called projections. Thinking of a type as the set of all possible values of that type, a supertype is a 
+
+...
+
+
+
+
+
+Projections can be used for performance, too. One of ROOT's important features is the ability to read only the fields required for an analysis, saving disk and CPU cycles that would otherwise go to reading unnecessary fields and decompressing them. Field-reading is toggled using ROOT's {\tt TTree::SetBranchStatus} method. With an abstract type system, one defines a 
 
 
 
