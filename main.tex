@@ -21,23 +21,23 @@ The purpose of the ROOT file format is to standardize storage of and access to H
 
 The ROOT format owes its success to two main factors: it is a meta-format, allowing specific data formats to be expressed within it, and it serializes complex, nested data structures in a columnar way, so that only the fields that are needed for an analysis will be read from disk.
 
-Meta-formats are not new; HDF and FITS both predate ROOT as self-describing scientific data containers. XML and ROOT were released in the same year (1997), and XML has been widely used in industry, despite its inefficiency for numerical data. More recently, JSON has supplanted XML in many applications and Avro, Thrift, and Protocol Buffers provide leaner (binary) representations of numerical data. These all share XML's record-major layout, like ROOT with split-mode turned off. Columnar file formats such as ORC, Parquet, and Feather are like ROOT with split-mode enabled, aiming to provide sub-second responses to queries on terabytes of data in the Hadoop ecosystem.
+Meta-formats are not new; HDF and FITS both predate ROOT as self-describing scientific data containers. XML and ROOT were released in the same year (1997), and XML has been widely used in industry, despite its inefficiency for numerical data. More recently, JSON has supplanted XML in many applications and Avro, Thrift, and Protocol Buffers provide leaner (binary) representations of numerical data. All of the above have a record-major layout like XML, or like ROOT with split-mode turned off. Columnar file formats such as ORC, Parquet, and Feather are like ROOT with split-mode enabled, as their purpose is to allow for fast calculations that don't require all fields.
 
 These so-called ``Big Data'' formats provide the same features as ROOT with similar or better performance. Unlike ROOT, most have a clear separation between I/O code and format specification, as well as APIs in many programming languages. Avro, for instance, has bindings for 11 languages, Thrift for 19, and Protocol Buffers for 10. ROOT can only be accessed in C++. (The Java-based FreeHEP-RootIO\footnote{\url{http://java.freehep.org/freehep-rootio/}} and independent RIO\footnote{\url{http://openscientist.lal.in2p3.fr/}} projects seem to be abandoned and do not open modern ROOT files.) Furthermore, the Big Data formats were designed with networking in mind; most of them can be interpreted while being streamed over HTTP. It may have taken the industry decades to catch up, but now the problem of how to quickly deliver vast quantities of structured, numerically intensive data has become an active area of research and commercial investment.
 
 HEP could benefit from this activity, but for two concerns: (1) long-lived data should have a stable format, and industry formats are changing rapidly; (2) many of these formats overlap in functionality, so which should a physicist choose? For instance, Avro, Thrift, and Protocol Buffers are all variants of binary JSON with schemas, developed independently by the Hadoop team, Facebook, and Google, respectively. It would be unwise to convert petabytes of HEP data into Protocol Buffers only to see its popularity eclipsed by Avro, for example. Also, the same ROOT executable reads unsplit (record-major) and split (columnar) ROOT data. In industry, this choice is made by swapping formats and using a different reader for each.
 
-Fortunately, the situation is not quite this chaotic: new formats interoperate with old formats and many converters are available. The Parquet project takes a particularly open approach by storing its columnar data with minimal interpretation so that they can be viewed through Avro's, Thrift's, or Protocol Buffers' ``logical'' type systems, making the data conceptually interchangeable.
+Fortunately, most of these formats are interconvertable. The Parquet project takes a particularly open approach by storing its columnar data with minimal interpretation so that they can be viewed through Avro's, Thrift's, or Protocol Buffers' ``logical'' type systems, making the data conceptually interchangeable.
 
-Moreover, a new project called Apache Arrow seeks to unify the runtime layout of data in memory. The purpose is to share data among analytic engines, such as Spark and Pandas, without saving it to a file or even copying it in memory. For disk formats, this means that $N$ formats may be translated among each other with $N$ translation libraries, rather than $N(N - 1)$.
+Moreover, a new project called Apache Arrow seeks to unify the runtime layout of data in memory. The purpose of Arrow is to share data among analytic engines, such as Spark and Pandas, without saving it to a file or even copying it in memory. For disk formats, this means that $N$ formats may be translated among each other with $N$ translation libraries, rather than $N(N - 1)$, and for libraries that can run in the same process, this means instantaneous sharing of data.
 
-Apache Arrow grew out of the in-memory data representation developed for Apache Drill\footnote{\url{https://www.mapr.com/blog/apache-arrow-and-value-vectors}} (a low-latency server for interactive analysis on large datasets). The data layout is similar to the one used by Apache Spark\footnote{\url{https://databricks.com/blog/2015/04/28/project-tungsten-bringing-spark-closer-to-bare-metal.html}} and others, since they are all motivated by a need to efficiently stream data through the CPU cache. Arrow is columnar, packed, and ready for vectorized instructions, while still describing complex, nested trees.
+Apache Arrow grew out of the in-memory data representation developed for Apache Drill\footnote{\url{https://www.mapr.com/blog/apache-arrow-and-value-vectors}} (a low-latency server intended for sub-second responses to queries on large datasets). The data layout is similar to the one used by Apache Spark\footnote{\url{https://databricks.com/blog/2015/04/28/project-tungsten-bringing-spark-closer-to-bare-metal.html}} and others, since they are all motivated by the same need to efficiently stream data through the CPU cache. Arrow is columnar, packed, and ready for vectorized instructions, while still describing complex, nested trees.
 
-Arrow is in its infancy, though. At the time of writing, it has been an Apache top-level project for eight months and announced its first version\footnote{\url{https://github.com/apache/arrow/releases/tag/apache-arrow-0.1.0}} two weeks ago (0.1.0 for Java, C++, and Python). However, the project has momentum. It shares developers with Pandas, Parquet, and Spark, and it is seen as the path for completing the Parquet-C++ library and therefore adding fast Parquet I/O to Pandas. Calcite, Cassandra, Drill, Hadoop, HBase, Ibis, Impala, Kudu, Phoenix, and Storm are also involved in the project, to be ready when Arrow becomes a de-facto standard.
+Arrow is in its infancy, though. At the time of writing, it has been an Apache top-level project for eight months and announced its first version\footnote{\url{https://github.com/apache/arrow/releases/tag/apache-arrow-0.1.0}} two weeks ago (0.1.0 for Java, C++, and Python). However, the project has momentum. It shares developers with Pandas, Parquet, and Spark, and it is seen as preferred path for completing the Parquet-C++ library and therefore adding fast Parquet I/O to Pandas. Calcite, Cassandra, Drill, Hadoop, HBase, Ibis, Impala, Kudu, Phoenix, and Storm are also involved in the project, to be ready when Arrow becomes a de-facto standard.
 
-Adding Arrow interoperability to ROOT, either as a part of the ROOT application or an add-on library, would provide more fluidity for HEP data. Once Arrow is established, physicists could mix ROOT analysis functions with Pandas for machine learning, Spark for iterative map-reduce (e.g.\ alignment, calibration, and other distributed fitters), or one of the many databases contending for low-latency, interactive analysis (e.g.\ ntuple exploration at a vast scale). With this new layer of flexibility between file formats and runtime environments, it would be safer to experiment with new file formats. And perhaps most importantly, it would remove the barrier between the HEP software ecosystem and the new ecosystems that are rapidly growing around numerical Python and Hadoop.
+Adding Arrow interoperability to ROOT, either as a part of the ROOT application or an add-on library, would give more fluidity to HEP data. Once Arrow is established, physicists could mix ROOT analysis functions with Pandas for machine learning, Spark for iterative map-reduce (e.g.\ alignment, calibration, and other distributed fitters), or one of the many databases contending for low-latency, interactive analysis (e.g.\ ntuple exploration at a vast scale). With this new layer of flexibility between file formats and runtime environments, it would be safer to experiment with new file formats. And perhaps most importantly, it would remove the barrier between the HEP software ecosystem and the new ecosystems that are rapidly growing around numerical Python and Hadoop.
 
-This paper starts with an overview of the Avro (record-major) and Parquet (columnar) file formats with extrapolations to Arrow (columnar in-memory), followed by a performance comparison with ROOT to show that they are, in some ways, more performant than ROOT for physics data. Next, we present a roadmap for developing ROOT-Arrow interoperability, concluding with a walkthrough of ROOT-to-Avro code demonstrating some of the necessary steps.
+This paper starts with an overview of the Avro (record-major) and Parquet (columnar) file formats with extrapolations to Arrow (columnar in-memory), followed by a performance comparison with ROOT to show that they are, in some ways, more performant than ROOT for physics data. Next, we present a roadmap for developing ROOT-Arrow interoperability, concluding with a walkthrough of existing ROOT-to-Avro code demonstrating some of the necessary steps.
 
 \section*{Avro, Parquet, and Arrow}
 
@@ -47,40 +47,40 @@ The most significant distinction between ROOT and the likes of Avro, Parquet, an
 
 Thus, ROOT has complete freedom to serialize classes that have no knowledge of or dependency on ROOT. ROOT uses a built-in runtime compiler (originally CINT, now Cling) to inspect the class's type and generate a default byte-encoding of it, like Java serialization or Python pickling, which similarly generate language-dependent serializations via runtime reflection.
 
-The user also has the freedom to customize that encoding (a custom {\tt TStreamer}). However, this freedom binds ROOT files to C++ because transformations can't be generated automatically (e.g.\ should a {\tt char*} be a Java {\tt byte[]} or a Java {\tt String}? What about pointers?). In addition, custom {\tt TStreamers} are a slippery slope toward custom file formats: ROOT cannot deserialize them without the original {\tt TStreamer}.
+The user also has the freedom to customize that encoding (a custom {\tt TStreamer}). However, this freedom binds ROOT files to C++ because transformations can't be generated automatically (e.g.\ should a {\tt char*} be a Java {\tt byte[]} or a Java {\tt String}? What about pointers?). In addition, custom {\tt TStreamers} are a slippery slope toward custom file formats: ROOT cannot deserialize them without the original {\tt TStreamer} software.
 
-Avro, Parquet, and Arrow, on the other hand, have a single, unchangeable serialization of high-level data types. The type system is an algebra generated by numbers, strings/byte arrays, booleans, a singleton null, lists of the above, key-value mappings of the above, record structures (product types) and disjoint unions (sum types) of the above. They differ in having features like enumeration contants and fixed-length byte arrays, which can be emulated with the above. In fact, Parquet deliberately excludes anything but the most basic types and allows richer type systems to be overlaid as interpretations of its basic types; one of these is Avro.
+Avro, Parquet, and Arrow, on the other hand, have a single, unchangeable serialization of high-level data types. The type system is an algebra generated by numbers, strings/byte arrays, booleans, a singleton null, lists of the above, key-value mappings of the above, record structures (product types) and disjoint unions (sum types) of the above. They differ in having features like enumeration contants and fixed-length byte arrays, which can be emulated with the above. In fact, Parquet deliberately excludes anything but the most basic types and allows richer type systems to be overlaid as interpretations of its basic types; one of these is the Avro type system.
 
-Rather than accepting any type from a given language, as ROOT does, Avro, Parquet, and Arrow require users' data structures to be expressed in their own type systems, which can have representations in any language. In some implementations, they are mapped to the language's basic types (e.g.\ lists and dicts in Python), while others fill library-specific objects (Avro-C creates its own {\tt datum\_t} objects), custom implementations (Avro-Java compiles specialized classes for a given schema), or both. The byte-encoding, however, is fixed across all implementations, so an object can always be read in some form.
+Rather than accepting any type from a given language, as ROOT, Java-serialization, and Python pickling do, Avro, Parquet, and Arrow require users' data structures to be expressed in their own type systems, which can have representations in any language. In some implementations, these abstract types are mapped to the language's basic types (e.g.\ lists and dicts in Python), while others fill library-specific objects (Avro-C creates its own {\tt datum\_t} objects), custom implementations (Avro-Java compiles specialized classes for a given schema), or both. The byte-encoding, however, is fixed across all implementations, so an object can always be read in some form.
 
 \subsection*{Conversions and reinterpretations}
 
 C++ types can be mapped onto rough equivalents in an abstract type system, though this mapping is not reversible. A round trip is possible, but not into the original C++ types (unless metadata is encoded in the schema documentation string).
 
-Here is an example translation of C++ into Avro types:
+Below is an example translation of C++ into Avro types:
 
 \noindent\begin{center}
 \begin{tabular}{c c l}
 C++ type & Avro equivalent & Comment \\\hline\hline
-bool & boolean & \\\hline
-char, short, int & int  & fewer integer types because of zig-zag encoding \\\hline
-unsigned int, long & long & \\\hline
+bool & boolean & distinct from numbers \\\hline
+char, short, int & int  & fewer integer types because zigzag encoding allows \\
+unsigned int, long & long & for variable-width serialization \\\hline
 char* & bytes & no Unicode interpretation: raw bytes \\\hline
 std::string & string & user probably wants to interpret this as UTF-8 \\
 {\tt TString} & & \\\hline
 C array & array & serialized data makes no distinction between \\
 std::vector, std::list & & fixed-length, growable, contiguous, or linked lists \\
 {\tt TCollection} & & \\\hline
-std::map & map & keys must be strings, though \\\hline
+std::map & map & keys must be strings (ensures hashability) \\\hline
 class, struct & record & can only save data members, not methods \\\hline
-pointer to X & union of null and X {\it or} & null is used to represent missing data \\
-& string key for a lookup map & for cross-referenced data \\\hline
+pointer to X & union of null and X {\it or} & case 1: null used to represent missing data \\
+& string key for a lookup map & case 2: pointers used for cross-referencing \\\hline
 class inheritance & union of records representing & C++ class inheritance is just a restricted form of \\
 & the concrete classes & tagged union polymorphism \\
 \end{tabular}
 \end{center}
 
-Naturally, this kind of translation is more of an art than a science: the natural choice for most cases may be inappropriate for some cases. We may need to provide for custom exceptions to these rules, just as there are custom {\tt TStreamer} serialization rules for ROOT. However, given an overridable set of rules like the above, we can translate complex structures by applying them recursively.
+Naturally, this kind of translation is more of an art than a science: the natural choice for most cases may be inappropriate for some cases. We may need to provide for custom exceptions to these rules, just as there are custom {\tt TStreamer} serialization rules for ROOT. However, given an overridable set of rules like the above, we can translate complex structures from ROOT to Avro by applying them recursively.
 
 The {\tt root2avro} code described in the last section implements such a ruleset.
 
@@ -88,44 +88,21 @@ The {\tt root2avro} code described in the last section implements such a ruleset
 
 Much like ROOT, abstract type systems define rules for schema evolution. A deserializer that needs to fill a given runtime type (defined by a user-supplied schema) must be a {\it supertype} of the schema published in a file's metadata. Supertypes are any types that could be used in place of its subtype: floating point values are supertypes of integers, and records with fewer fields are supertypes of records with more fields. In C++ class inheritance, B is a subclass of A if B has all the members of A and (possibly) more, so a subtype/supertype relationship is a generalization of a subclass/superclass relationship.
 
-To give some concrete examples, Avro's {\tt int} can be read into {\tt long}, both can be read into {\tt float}, and all three can be read into {\tt double}, but not the other way around. An array of {\tt int} can be read into an array of {\tt double} (type covariance). Records with {\tt int} fields can be read into records with {\tt double} fields or records with fewer fields. A union of types X, Y, and Z can be read into a runtime structure of types X and Y. Enumerations of A, B, and C can be read into runtime enumerations of A, B, C, and D. Old type names can be replaced with new type names via aliases.
+To give some concrete examples, Avro's {\tt int} can be read into {\tt long}, both can be read into {\tt float}, and all three can be read into {\tt double}, but not the other way around. An array of {\tt int} can be read into an array of {\tt double} (type covariance). Records with {\tt int} fields can be read into records with {\tt double} fields or records with fewer fields. A union of types X, Y, and Z can be read into the union of types X and Y. Enumerations of A, B, and C can be read into runtime enumerations of A, B, C, and D. Old type names can be replaced with new type names via aliases.
 
-The typical use-case of schema evolution is to future-proof data structures, so that old data can be used in new applications. In HEP, Avro schema evolution has been used to read Monte Carlo (which has generator-level information) and data (which does not) into the same compiled classes. In this use-case, the data's schema was simply a supertype of the Monte Carlo's schema.
+The typical use-case of schema evolution is to future-proof data structures, so that old data can be used in new applications. In HEP, we have used Avro schema evolution to read Monte Carlo (which has generator-level information) and data (which does not) into the same compiled classes. In this use-case, the data's schema was simply a supertype of the Monte Carlo's schema because it lacks the generator-level fields.
 
-Supertypes are also called projections. Thinking of a type as the set of all possible values of that type, a supertype is a 
+Supertypes are also called projections. Thinking of a type as the set of all possible values of that type, a supertype is a projection of that space onto a lower-dimensional subspace. For instance, a record of fields $x$, $y$, and $z$ could be thought of as a three-dimensional space that can be projected into a space of records of $x$ and $y$.
 
-...
+Projections can be used to deliberately avoid the performance cost of loading data. For instance, if we don't need field $z$ of a record, we can project it onto a supertype. This is a different use of schema evolution than the one it was designed for (data version management), but it emulates ROOT's ability to read a subset of data fields with {\tt TTree::SetBranchStatus}.
 
-
-
-
-
-Projections can be used for performance, too. One of ROOT's important features is the ability to read only the fields required for an analysis, saving disk and CPU cycles that would otherwise go to reading unnecessary fields and decompressing them. Field-reading is toggled using ROOT's {\tt TTree::SetBranchStatus} method. With an abstract type system, one defines a 
-
-
-
-
-
-
-
-
-
-\subsection*{Physical representation}
-
-
-
-
-
-
-% zig-zag format
-
-
-
-\vfill
-\pagebreak
+For record-major formats, the unused data must still be read and decompressed before being skipped. As we will see in the performance comparison (below), this doesn't have a significant impact for real-world HEP data files. For columnar formats, the behavior is the same as ROOT's.
 
 \section*{Performance comparison}
 
+The table below shows the relative file sizes and read/write performance of a sample of 47,407 $t\bar{t}$ Monte Carlo events. The data are not flat ntuples: they contain {\tt TClonesArrays} of custom class instances representing fully reconstructed 4-vectors with enough auxiliary information to perform complete analyses\footnote{\url{https://github.com/mcremone/BaconAnalyzer}}. ROOT 6.06/08, Avro-C and Avro-Java 1.8.1, and Parquet 1.8.1 were used for read and write tests with an SSD disk and one 800~MHz processor with 4~GB of RAM and 1024 kB of CPU cache (slow Chromebook).
+
+\vspace{-0.4 cm}
 \noindent\begin{center}
 \begin{tabular}{p{2.4 cm} | P{1.2 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm}}
 File type & file size (MB) & convert from ROOT (sec) & read all in C++ (sec) & read a field in C++ (sec) & convert from Avro (sec) & read all in Java (sec) & read a field in Java (sec)      \\\hline
@@ -143,19 +120,17 @@ Parquet gzip  & 176 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downar
 \end{tabular}
 \end{center}
 
-The above table shows the relative file sizes and read/write performance of a sample of 47,407 $t\bar{t}$ Monte Carlo events. The data are not flat ntuples: they contain {\tt TClonesArrays} of custom class instances. They represent fully reconstructed 4-vectors with enough auxiliary information to perform complete analyses\footnote{\url{https://github.com/mcremone/BaconAnalyzer}}. ROOT 6.06/08, Avro-C and Avro-Java 1.8.1, and Parquet 1.8.1 were used for read and write tests with an SSD disk and one 800~MHz processor with 4~GB of RAM and 1024 kB of CPU cache (Chromebook).
-
 A typical ROOT file uses gzip compression level 1, corresponding to the second line in the table (204~MB). The ``convert from ROOT'' operation is the time required for a {\tt TTree::CloneTree()} (127 sec). All ROOT files in this study are fully split.
 
 The Avro analogy represents the {\tt TClonesArrays} as Avro arrays and the C++ class instances as abstract records. Typically, one would use Avro's built-in Snappy compression to balance file size with CPU effort: in this case ROOT's 204~MB compresses to a similarly sized 198~MB Avro file. The ``convert from ROOT'' operation is complicated by the fact that it counts ROOT-reading and Avro-writing, but because pure ROOT-reading takes 48~sec, we can infer that ROOT-to-Avro's 79~sec is 48~sec of reading plus 31~sec of writing. By the same logic, ROOT-to-ROOT is 48~sec of reading plus 79~sec ($127 - 48$) of writing.
 
 ROOT is faster than the Avro-C library\footnote{\url{https://avro.apache.org/docs/current/api/c/}, using the ``datum'' interface} for reading back the whole structure. ROOT takes 48~sec to repopulate the {\tt TClonesArrays} of class instances and Avro-C takes 116~sec. However, Avro-C is faster at picking out one field: muon $p_T$ for all muons can be extracted from ROOT in 12.0~sec and Avro in 6.2~sec. (The dataset has 55,560 muons, 1.17 muons per event.)
 
-This may seem surprising because ROOT's file format was designed to be columnar precisely for this purpose. Avro has to read, decompress, and step through the entire record to pick out the muon $p_T$, while ROOT simply seeks to that branch, decompresses it, and delivers it. There are several factors that complicate this comparison. One is that the disk hardware is an SSD, which has a higher bandwidth than mechanical disk drives. Another is that snappy is a more lightweight compression algorithm than gzip, with an emphasis on CPU efficiency. The LZMA algorithm compresses the data more tightly at a significant cost in reading (25.5~sec). Finally, the Avro read has a strictly linear memory access pattern that favors prefetching to CPU cache.
+This may seem surprising because ROOT's file format was designed to be columnar precisely for this purpose. Avro has to read, decompress, and step through the entire record to pick out the muon $p_T$, while ROOT simply seeks to that branch, decompresses it, and delivers it. There are several factors that complicate this comparison. One is that the disk hardware is an SSD, which has a higher bandwidth than the mechanical disk drives for which ROOT was designed. Another is that snappy is a more lightweight compression algorithm than gzip, with an emphasis on CPU efficiency. The LZMA algorithm compresses the data more tightly at a significant cost in reading (25.5~sec). Finally, the Avro read has a strictly linear memory access pattern that favors prefetching to CPU cache.
 
 Note that the read-time results are, with the exception of LZMA, independent of compression for both ROOT and Avro. Something that doesn't scale with read size or depth of compression is the true bottleneck, and object-creation is a likely culprit. ROOT fills {\tt TClonesArray} and our custom classes after reading, and it probably does this well (highly tuned; many experiments depend on it). Avro-C reads data into its custom {\tt datum\_t} objects, which are likely more often used for writing than reading.
 
-Perhaps more surprising is the Avro read performance in Java: 8.8~sec to read all fields and 4.3~sec to read muon $p_T$, compared with 116 and 6.2~sec, respectively, in Avro-C. The Java implementation of Avro would have received much more developer scrutiny, as it has a central role in Hadoop data processing. Our array-of-records structure thwarts direct object reuse, but the short-lived objects created and destroyed in this test would benefit from Java's generational garbage collection: they might never live beyond the Eden generation, where memory allocation does not involve an $\mathcal{O}(n)$ search through a fragmented memory space.
+Perhaps more surprising is the high performance read of Avro in Java: 8.8~sec to read all fields and 4.3~sec to read muon $p_T$, compared with 116 and 6.2~sec, respectively, in Avro-C. The Java implementation of Avro would have received much more developer scrutiny, as it has a central role in Hadoop data processing. Our array-of-records structure thwarts direct object reuse, but the short-lived objects created and destroyed in this test would benefit from Java's generational garbage collection: they might never live beyond the Eden generation, where memory allocation does not involve an $\mathcal{O}(n)$ search through a fragmented memory space. The dramatic gap between reading full objects and reading a projection also points to object-creation as a slowdown in Avro-C.
 
 The corresponding ROOT file performance in Java with FreeHEP-RootIO would be interesting, but this old codebase raises an ``Error while instantiating TBranchElement'' exception whenever it encounters anything but a flat ntuple. It's also worth noting that LZMA compression is an Avro-C feature, not available in Avro-Java.
 
@@ -165,20 +140,23 @@ At the time of writing, Parquet-C++ was not ready for nested data structures. Ho
 
 For this study, we used a constant Parquet {\tt blockSize} of 32~MB, which is the granularity of a group of rows with their associated columns. The default size is 128~MB, but then the whole file would become one or two row groups and we wouldn't see variation with compression algorithms. We used a {\tt pageSize} of 1~MB (default), which is the size of array buffers that are independently compressed.
 
-We can now read Parquet files back into Avro data structures (Java class instances), which takes about 54~sec, regardless of compression. This is much worse than the 8.8~sec it takes to read Avro files into the same data structures. In fact, reading columnar Parquet files into Java class instances is conceptually similar to reading split ROOT files into C++ class instances, and that time is similar: 48~sec for ROOT/C++, 54~sec for Parquet/Java. However, Parquet is not intended to be used in an event loop.
+We can now read Parquet files back into Avro data structures (Java class instances), which takes about 54~sec, regardless of compression. This is much worse than the 8.8~sec it takes to read Avro files into its own data structures. In fact, reading columnar Parquet files into Java class instances is conceptually similar to reading split ROOT files into C++ class instances, and that time is similar: 48~sec for ROOT/C++, 54~sec for Parquet/Java. However, Parquet is not intended to be used in an event loop.
 
 Parquet's intended purpose is to be a database backend, in which users submit queries for single histograms (e.g.\ in the form of an SQL group-by statement) and the system organizes them into work-plans that execute and return results on a human timescale (milliseconds to seconds). This functionality is built into systems like Drill, Impala, and SparkSQL; we used SparkSQL.
 
-Spark had to be deliberately limited to one CPU core; by default, it reads Parquet with all cores in parallel. It was also hard to distinguish among shortening latencies due to previously cached results, one-time library loading, and Java HotSpot optimization. Toward this end, we made several copies of the file and read them each into SparkSQL as distinct tables, reading from each one once. The data can't be cached (since Spark doesn't know that the files are identical) but libraries and HotSpot optimizations needed for the early files wouldn't be needed for later files. We took the plateau read time (0.5~sec to load a new database plus 1.9~sec to respond to a query) as the result in the table.
+Spark had to be deliberately limited to one CPU core for this test; by default, it reads Parquet with all cores in parallel. It was also hard to distinguish among shortening latencies due to previously cached results, one-time library loading, and Java HotSpot optimization. Toward this end, we made several copies of the file and read them each into SparkSQL as distinct tables, reading from each one once. The data can't be cached (since Spark doesn't know that the files are identical) but libraries and HotSpot optimizations needed for the early files wouldn't be needed for later files. We took the plateau read time (0.5~sec to load a new database plus 1.9~sec to respond to a query) as the result in the table.
 
-Although single-field read times from Avro (4.3~sec) and Parquet (2.4~sec) differ by only a factor of two, an interactive user would experience them quite differently. Repeated queries for the same field are cached, allowing the user to explore the data by varying cuts. Furthermore, this caching is distributed across a cluster, sharing caches with users interested in the same fields. However, there is no way to quantify that difference in usage patterns in a table.
+Although single-field read times from Avro (4.3~sec) and Parquet (2.4~sec) differ by only a factor of two, an interactive user would experience them quite differently. Repeated queries for the same field are cached, allowing the user to explore the data by varying cuts. Furthermore, this caching is distributed across a cluster, sharing caches with users interested in the same fields. However, there is no way to quantify differences in usage patterns like these in the table.
 
 \section*{Roadmap to a ROOT-Arrow interface}
 
 
 
 
-\section*{Review of ROOT-to-Avro code}
+
+
+
+\section*{Walkthrough of ROOT-to-Avro code}
 
 \footnote{\url{https://github.com/diana-hep/rootconverter}}
 
