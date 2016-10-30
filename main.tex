@@ -106,10 +106,10 @@ The table below shows the relative file sizes and read/write performance of a sa
 \noindent\begin{center}
 \begin{tabular}{p{2.4 cm} | P{1.2 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm} P{1.9 cm} P{1.2 cm} P{1.8 cm}}
 File type & file size (MB) & convert from ROOT (sec) & read all in C++ (sec) & read a field in C++ (sec) & convert from Avro (sec) & read all in Java (sec) & read a field in Java (sec)      \\\hline
-ROOT none     & 399 &          110 &           47 &         11.6 &       \textcolor{gray}{didn't} &        \textcolor{gray}{can't} &        \textcolor{gray}{can't} \\
-ROOT gzip 1   & 204 &          127 &           48 &         12.0 &          \textcolor{gray}{try} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} \\
-ROOT gzip 2   & 208 &          132 &           47 &         11.4 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} \\
-ROOT gzip 9   & 202 &          265 &           48 &         11.2 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} \\\hline
+ROOT none     & 399 &          110 &           47 &         0.12 &       \textcolor{gray}{didn't} &          \textcolor{gray}{TBD} & 0.07 \\
+ROOT gzip 1   & 204 &          127 &           48 &         0.14 &          \textcolor{gray}{try} & \textcolor{gray}{$\downarrow$} & 0.08 \\
+ROOT gzip 2   & 208 &          132 &           47 &         0.14 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & 0.08 \\
+ROOT gzip 9   & 202 &          265 &           48 &         0.13 & \textcolor{gray}{$\downarrow$} & \textcolor{gray}{$\downarrow$} & 0.11 \\\hline
 Avro none     & 237 &           76 &          113 &          5.4 &          168 &          8.3 &          3.7 \\
 Avro snappy   & 198 &           79 &          116 &          6.2 &          172 &          8.8 &          4.3 \\
 Avro deflate  & 180 &          142 &          117 &          7.6 &          197 &         13.5 &          8.9 \\
